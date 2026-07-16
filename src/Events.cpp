@@ -143,7 +143,7 @@ namespace Events {
 
         using Archetype = RE::EffectArchetypes::ArchetypeID;
         const auto archetype = base ? base->GetArchetype() : Archetype::kNone;
-        if (archetype == Archetype::kValueModifier || archetype == Archetype::kDualValueModifier) {
+        if (archetype == Archetype::kValueModifier) {
             if (auto* valMod = skyrim_cast<RE::ValueModifierEffect*>(a_effect)) {
                 auto* actor = valMod->GetTargetActor();
                 const float oldValue = valMod->value;
