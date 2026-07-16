@@ -6,6 +6,15 @@
 
 namespace Events {
     namespace {
+        bool SafeModifyActorValue(RE::ValueModifierEffect* a_effect, RE::Actor* a_actor, float a_delta, RE::ActorValue a_actorValue) noexcept {
+            __try {
+                a_effect->ModifyActorValue(a_actor, a_delta, a_actorValue);
+                return true;
+            } __except (EXCEPTION_EXECUTE_HANDLER) {
+                return false;
+            }
+        }
+
         RE::ActiveEffect* FindActiveEffect(RE::Actor* a_actor, std::uint16_t a_uniqueID) {
             auto* magicTarget = a_actor ? a_actor->GetMagicTarget() : nullptr;
             auto* effects = magicTarget ? magicTarget->GetActiveEffectList() : nullptr;
@@ -130,6 +139,18 @@ namespace Events {
     void EaseDiseaseHandler::ScaleEffect(RE::ActiveEffect* a_effect, float a_multiplier) const {
         if (!a_effect) return;
 
+        using Flag = RE::ActiveEffect::Flag;
+        if (a_effect->flags.any(Flag::kDispelled, Flag::kInactive)) return;
+
+        auto* base = a_effect->GetBaseObject();
+
+        using Archetype = RE::EffectArchetypes::ArchetypeID;
+        const auto archetype = base ? base->GetArchetype() : Archetype::kNone;
+        if (archetype != Archetype::kValueModifier && archetype != Archetype::kDualValueModifier &&
+            archetype != Archetype::kPeakValueModifier) {
+            return;
+        }
+
         const auto* item = a_effect->effect;
         const float baseMag = item ? std::fabs(item->GetMagnitude()) : 0.0f;
         if (baseMag <= 0.0f) return;
@@ -139,20 +160,20 @@ namespace Events {
         const float newMag = magSign * baseMag * a_multiplier;
         if (newMag == oldMag) return;
 
-        auto* base = a_effect->GetBaseObject();
-
-        using Archetype = RE::EffectArchetypes::ArchetypeID;
-        const auto archetype = base ? base->GetArchetype() : Archetype::kNone;
         if (archetype == Archetype::kValueModifier) {
             if (auto* valMod = skyrim_cast<RE::ValueModifierEffect*>(a_effect)) {
                 auto* actor = valMod->GetTargetActor();
                 const float oldValue = valMod->value;
                 const bool valueApplied = oldValue != 0.0f || std::signbit(oldValue);
-                if (actor && valueApplied) {
+                if (actor && valueApplied && valMod->actorValue != RE::ActorValue::kNone) {
                     const float valSign = std::signbit(oldValue) ? -1.0f : 1.0f;
                     const float newValue = valSign * baseMag * a_multiplier;
-                    valMod->ModifyActorValue(actor, newValue - oldValue, valMod->actorValue);
-                    valMod->value = newValue;
+                    if (SafeModifyActorValue(valMod, actor, newValue - oldValue, valMod->actorValue)) {
+                        valMod->value = newValue;
+                    } else {
+                        logger::warn("Guarded againt a reapply when game does not have that stage '{}', stat left for natural reapply.",
+                                     base ? base->GetName() : "?");
+                    }
                 }
             }
         }
