@@ -146,10 +146,6 @@ namespace Events {
 
         using Archetype = RE::EffectArchetypes::ArchetypeID;
         const auto archetype = base ? base->GetArchetype() : Archetype::kNone;
-        if (archetype != Archetype::kValueModifier && archetype != Archetype::kDualValueModifier &&
-            archetype != Archetype::kPeakValueModifier) {
-            return;
-        }
 
         const auto* item = a_effect->effect;
         const float baseMag = item ? std::fabs(item->GetMagnitude()) : 0.0f;
@@ -179,8 +175,7 @@ namespace Events {
         }
         a_effect->magnitude = newMag;
 
-        logger::info("Scaled '{}' ({}) magnitude {} -> {}.", base ? base->GetName() : "?",
-                     static_cast<int>(archetype), oldMag, newMag);
+        logger::info("Scaled '{}' ({}) magnitude {} -> {}.", base ? base->GetName() : "?", static_cast<int>(archetype), oldMag, newMag);
     }
 
     void EaseDiseaseHandler::Revalidate() {
@@ -248,8 +243,7 @@ namespace Events {
         if (!mgef) return RE::BSEventNotifyControl::kContinue;
 
         if (HasEaseKeyword(mgef)) {
-            logger::info("Ease keyword effect '{}' ({:08X}) hit the player, revalidating.", mgef->GetName(),
-                         mgef->GetFormID());
+            logger::info("Ease keyword effect '{}' ({:08X}) hit the player, revalidating.", mgef->GetName(), mgef->GetFormID());
             QueueRevalidate();
         } else if (_lastMultiplier < 1.0f) {
             QueueRevalidate();
@@ -257,7 +251,6 @@ namespace Events {
 
         return RE::BSEventNotifyControl::kContinue;
     }
-
     void Install() {
         auto* handler = EaseDiseaseHandler::GetSingleton();
         handler->ResolveForms();
